@@ -1,0 +1,102 @@
+{
+  "name": "demo",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/backend-demo/src",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "./gradlew build -x test",
+        "cwd": "apps/backend-demo"
+      },
+      "cache": true,
+      "inputs": [
+        "default",
+        "{projectRoot}/**/*"
+      ],
+      "outputs": [
+        "{projectRoot}/build"
+      ]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "./gradlew test",
+        "cwd": "apps/backend-demo"
+      },
+      "cache": true,
+      "inputs": [
+        "default",
+        "{projectRoot}/build.gradle",
+        "{projectRoot}/src/**/*.java"
+      ],
+      "outputs": [
+        "{projectRoot}/build/reports/tests",
+        "{projectRoot}/build/test-results"
+      ]
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "./gradlew bootRun",
+        "cwd": "apps/backend-demo"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "./gradlew clean",
+        "cwd": "apps/backend-demo"
+      }
+    },
+    "build-image": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "./gradlew bootBuildImage",
+        "cwd": "apps/backend-demo"
+      },
+      "dependsOn": ["build"],
+      "cache": true,
+      "inputs": [
+        "default",
+        "{projectRoot}/build.gradle",
+        "{projectRoot}/src/**/*.java"
+      ]
+    },
+    "jar": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "./gradlew jar",
+        "cwd": "apps/backend-demo"
+      },
+      "cache": true,
+      "inputs": [
+        "default",
+        "{projectRoot}/build.gradle",
+        "{projectRoot}/src/**/*.java"
+      ],
+      "outputs": [
+        "{projectRoot}/build/libs"
+      ]
+    },
+    "bootJar": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "./gradlew bootJar",
+        "cwd": "apps/backend-demo"
+      },
+      "dependsOn": ["build"],
+      "cache": true,
+      "inputs": [
+        "default",
+        "{projectRoot}/build.gradle",
+        "{projectRoot}/src/**/*.java"
+      ],
+      "outputs": [
+        "{projectRoot}/build/libs"
+      ]
+    }
+  }
+}
