@@ -7,7 +7,7 @@ on:
   pull_request:
 
 permissions:
-  actions: read
+  actions: write
   contents: read
 
 jobs:
@@ -58,6 +58,34 @@ jobs:
           docker tag demo-backend:local ${IMAGE_REPO}:latest
           docker push ${IMAGE_REPO}:${IMAGE_TAG}
           docker push ${IMAGE_REPO}:latest
+
+      # Configure AWS credentials (OIDC)
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Render ECS task definition with tag and region
+        run: |
+          sed -e "s/REPLACE_WITH_SHA/${{ github.sha }}/" \
+              -e "s/REPLACE_WITH_REGION/${{ secrets.AWS_REGION }}/" \
+              infra/ecs/task-def.json > task-def.rendered.json
+          cat task-def.rendered.json
+
+      - name: Register task definition
+        id: registerTask
+        run: |
+          aws ecs register-task-definition --cli-input-json file://task-def.rendered.json > register-output.json
+          TASK_DEF_ARN=$(jq -r '.taskDefinition.taskDefinitionArn' register-output.json)
+          echo "taskDefArn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster "${{ secrets.AWS_ECS_CLUSTER }}" \
+            --service "${{ secrets.AWS_ECS_SERVICE }}" \
+            --task-definition "${{ steps.registerTask.outputs.taskDefArn }}"
 
       # Nx Cloud recommends fixes for failures
       - run: npx nx fix-ci
