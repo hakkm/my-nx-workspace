@@ -25,7 +25,7 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      # - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
 
       # Lint, test, build all applicable projects
       - run: npx nx run-many -t lint test build
