@@ -22,6 +22,41 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci --legacy-peer-deps
+
+      # Lint, test, build all applicable projects
+      - run: npx nx run-many -t lint test build
+
+      # Build backend Docker image (depends on bootJar)
+      - name: Build backend Docker image
+        run: npx nx run demo:docker:build
+
+      # Login to Docker Hub using repository secrets
+      - name: Docker Hub login
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+      # Tag and push both SHA and latest
+      - name: Tag and push image
+        env:
+          IMAGE_REPO: khabirhakim/demo-backend
+        run: |
+          IMAGE_TAG=$(git rev-parse --short HEAD)
+          docker tag demo-backend:local ${IMAGE_REPO}:${IMAGE_TAG}
+          docker tag demo-backend:local ${IMAGE_REPO}:latest
+          docker push ${IMAGE_REPO}:${IMAGE_TAG}
+          docker push ${IMAGE_REPO}:latest
+
+      # Configure AWS credentials (OIDC)
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
