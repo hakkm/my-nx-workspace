@@ -97,6 +97,20 @@
       "outputs": [
         "{projectRoot}/build/libs"
       ]
+    },
+    "docker:build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t demo-backend:local -f apps/backend-demo/Dockerfile .",
+        "cwd": "."
+      },
+      "dependsOn": ["bootJar"]
+    },
+    "docker:push": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker tag demo-backend:local khabirhakim/demo-backend:latest && docker push khabirhakim/demo-backend:latest"
+      }
     }
   }
 }

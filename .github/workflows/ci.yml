@@ -33,9 +33,32 @@ jobs:
 
       - run: npm ci --legacy-peer-deps
 
-      # Prepend any command with "nx-cloud record --" to record its logs to Nx Cloud
-      # - run: npx nx-cloud record -- echo Hello World
+      # Lint, test, build all applicable projects
       - run: npx nx run-many -t lint test build
-      # Nx Cloud recommends fixes for failures to help you get CI green faster. Learn more: https://nx.dev/ci/features/self-healing-ci
+
+      # Build backend Docker image (depends on bootJar)
+      - name: Build backend Docker image
+        run: npx nx run demo:docker:build
+
+      # Login to Docker Hub using repository secrets
+      - name: Docker Hub login
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+      # Tag and push both SHA and latest
+      - name: Tag and push image
+        env:
+          IMAGE_REPO: khabirhakim/demo-backend
+        run: |
+          IMAGE_TAG=$(git rev-parse --short HEAD)
+          docker tag demo-backend:local ${IMAGE_REPO}:${IMAGE_TAG}
+          docker tag demo-backend:local ${IMAGE_REPO}:latest
+          docker push ${IMAGE_REPO}:${IMAGE_TAG}
+          docker push ${IMAGE_REPO}:latest
+
+      # Nx Cloud recommends fixes for failures
       - run: npx nx fix-ci
         if: always()
