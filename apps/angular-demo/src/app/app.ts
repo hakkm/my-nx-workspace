@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { HttpClientModule, HttpClient } from '@angular/common/http';
 import { NgIf } from '@angular/common';
@@ -20,16 +20,24 @@ import { NgIf } from '@angular/common';
       <p>Backend is making coffee...</p>
     </ng-template>
   `,
-  styles: [`
-    h1 { color: #4c7; font-size: 28px; }
-    p { font-size: 18px; }
-  `],
+  styles: [
+    `
+      h1 {
+        color: #4c7;
+        font-size: 28px;
+      }
+      p {
+        font-size: 18px;
+      }
+    `,
+  ],
 })
 export class App {
+  private http = inject(HttpClient);
   protected title = 'angular-demo';
   protected helloData?: HelloResponse;
 
-  constructor(private http: HttpClient) {
+  constructor() {
     this.fetchHello();
   }
 
@@ -37,8 +45,8 @@ export class App {
     this.http
       .get<HelloResponse>('http://localhost:8080/api/test/hello')
       .subscribe({
-        next: (data) => this.helloData = data,
-        error: (err) => console.error('Backend exploded:', err)
+        next: (data) => (this.helloData = data),
+        error: (err) => console.error('Backend exploded:', err),
       });
   }
 }
