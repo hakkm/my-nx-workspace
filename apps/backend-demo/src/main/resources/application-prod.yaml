@@ -1,0 +1,13 @@
+server:
+  port: 8080
+  # Don't show your dirty laundry (stack traces) to hackers.
+  error:
+    include-stacktrace: never
+    include-message: always
+
+logging:
+  # Debug is for cowards. Real pros guess what happened based on vague ERROR logs.
+  level:
+    root: INFO
+    org.springframework: WARN
+    com.example: INFO
