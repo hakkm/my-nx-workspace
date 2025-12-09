@@ -43,7 +43,15 @@ tasks.named('test') {
 }
 springBoot {
 	buildInfo()
+	mainClass = 'com.rabbithole.springbootdemo.DemoApplication'
 }
+
+tasks.named('bootJar') {
+  manifest {
+    attributes('Main-Class': 'org.springframework.boot.loader.JarLauncher')
+  }
+}
+
 publishing {
 	publications {
 		mavenJava(MavenPublication) {
