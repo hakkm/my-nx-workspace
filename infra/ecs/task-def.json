@@ -10,7 +10,7 @@
     "memory": "1024",
     "containerDefinitions": [
         {
-            "name": "demo-backend",
+            "name": "backend-demo-tf-container-backend",
             "image": "khabirhakim/demo-backend:REPLACE_WITH_SHA",
             "cpu": 0,
             "essential": true,
@@ -22,7 +22,6 @@
             ],
             "portMappings": [
                 {
-                    "name": "demo-backend-8080-tcp",
                     "containerPort": 8080,
                     "hostPort": 8080,
                     "protocol": "tcp",
