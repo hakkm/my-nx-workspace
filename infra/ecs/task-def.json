@@ -10,7 +10,7 @@
     "memory": "1024",
     "containerDefinitions": [
         {
-            "name": "backend-demo-tf-container-backend",
+            "name": "backend-demo-tf-container",
             "image": "khabirhakim/demo-backend:REPLACE_WITH_SHA",
             "cpu": 0,
             "essential": true,
