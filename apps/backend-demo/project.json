@@ -84,7 +84,46 @@
         "command": "./gradlew spotlessApply",
         "cwd": "apps/backend-demo"
       },
-      "cache": false
+      "cache": true,
+      "inputs": [
+        "default",
+        "{projectRoot}/build.gradle",
+        "{projectRoot}/src/**/*.java"
+      ],
+      "outputs": [
+        "{projectRoot}/build/libs"
+      ]
+    },
+    "bootJar": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "./gradlew bootJar",
+        "cwd": "apps/backend-demo"
+      },
+      "dependsOn": ["build"],
+      "cache": true,
+      "inputs": [
+        "default",
+        "{projectRoot}/build.gradle",
+        "{projectRoot}/src/**/*.java"
+      ],
+      "outputs": [
+        "{projectRoot}/build/libs"
+      ]
+    },
+    "docker:build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t demo-backend:local -f apps/backend-demo/Dockerfile .",
+        "cwd": "."
+      },
+      "dependsOn": ["bootJar"]
+    },
+    "docker:push": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker tag demo-backend:local khabirhakim/demo-backend:latest && docker push khabirhakim/demo-backend:latest"
+      }
     }
   }
 }
