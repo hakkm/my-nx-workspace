@@ -39,3 +39,8 @@ variable "health_check_path" {
   type        = string
   default     = "/api/test/hello"
 }
+
+variable "github_repo" {
+  description = "The GitHub repository in 'owner/repo' format (e.g., khabirhakim/monorepo-rabbit-hole)"
+  type        = string
+}
