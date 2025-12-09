@@ -24,7 +24,7 @@
         "{projectRoot}/**/*"
       ],
       "outputs": [
-        "{projectRoot}/build"
+        "{projectRoot}/build/libs"
       ]
     },
     "test": {
@@ -94,30 +94,13 @@
         "{projectRoot}/build/libs"
       ]
     },
-    "bootJar": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "./gradlew bootJar",
-        "cwd": "apps/backend-demo"
-      },
-      "dependsOn": ["build"],
-      "cache": true,
-      "inputs": [
-        "default",
-        "{projectRoot}/build.gradle",
-        "{projectRoot}/src/**/*.java"
-      ],
-      "outputs": [
-        "{projectRoot}/build/libs"
-      ]
-    },
     "docker:build": {
       "executor": "nx:run-commands",
       "options": {
         "command": "docker build -t demo-backend:local -f apps/backend-demo/Dockerfile .",
         "cwd": "."
       },
-      "dependsOn": ["bootJar"]
+      "dependsOn": ["build"]
     },
     "docker:push": {
       "executor": "nx:run-commands",
