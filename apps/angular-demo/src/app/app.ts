@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { HttpClientModule, HttpClient } from '@angular/common/http';
 import { NgIf } from '@angular/common';
+import { environment } from '../environments/environment';
 
 @Component({
   selector: 'app-root',
@@ -42,8 +43,9 @@ export class App {
   }
 
   private fetchHello() {
+    const url = `${environment.apiBaseUrl}/api/test/hello`;
     this.http
-      .get<HelloResponse>('http://localhost:8080/api/test/hello')
+      .get<HelloResponse>(url)
       .subscribe({
         next: (data) => (this.helloData = data),
         error: (err) => console.error('Backend exploded:', err),
