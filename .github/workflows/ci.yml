@@ -27,12 +27,12 @@ jobs:
       # - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="build"
 
       # Cache node_modules
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
+      # - uses: actions/setup-node@v4
+      #   with:
+      #     node-version: 20
+      #     cache: 'npm'
 
-      - run: npm ci --legacy-peer-deps
+      # - run: npm ci --legacy-peer-deps
 
       # # Lint, test, build all applicable projects
       # - run: npx nx run-many -t lint test build
@@ -71,7 +71,6 @@ jobs:
       - name: Render ECS task definition with tag and region
         run: |
           sed -e "s/REPLACE_WITH_SHA/${{ github.sha }}/" \
-              -e "s/REPLACE_WITH_REGION/${{ secrets.AWS_REGION }}/" \
               infra/ecs/task-def.json > task-def.rendered.json
           cat task-def.rendered.json
 

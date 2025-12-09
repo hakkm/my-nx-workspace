@@ -1,37 +1,59 @@
 {
-  "family": "demo-backend",
-  "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
-  "cpu": "512",
-  "memory": "1024",
-  "executionRoleArn": "arn:aws:iam::<account-id>:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::<account-id>:role/demo-backend-task-role",
-  "containerDefinitions": [
-    {
-      "name": "demo-backend",
-      "image": "khabirhakim/demo-backend:REPLACE_WITH_SHA",
-      "essential": true,
-      "portMappings": [
-        { "containerPort": 8080, "protocol": "tcp" }
-      ],
-      "environment": [
-        { "name": "SPRING_PROFILES_ACTIVE", "value": "prod" }
-      ],
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "/ecs/demo-backend",
-          "awslogs-region": "REPLACE_WITH_REGION",
-          "awslogs-stream-prefix": "ecs"
+    "family": "backend-demo-task-definition",
+    "containerDefinitions": [
+        {
+            "cpu": 0,
+            "environment": [],
+            "environmentFiles": [],
+            "essential": true,
+            "healthCheck": {
+                "command": [
+                    "CMD-SHELL",
+                    "curl -f http://localhost:8080/api/test/hello || exit 1"
+                ],
+                "interval": 30,
+                "retries": 3,
+                "timeout": 5
+            },
+            "image": "khabirhakim/demo-backend:REPLACE_WITH_SHA",
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/backend-demo-task-definition",
+                    "awslogs-create-group": "true",
+                    "awslogs-region": "eu-north-1",
+                    "awslogs-stream-prefix": "ecs"
+                },
+                "secretOptions": []
+            },
+            "mountPoints": [],
+            "name": "demo-backend",
+            "portMappings": [
+                {
+                    "appProtocol": "http",
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "name": "demo-backend-8080-tcp",
+                    "protocol": "tcp"
+                }
+            ],
+            "systemControls": [],
+            "ulimits": [],
+            "volumesFrom": []
         }
-      },
-      "healthCheck": {
-        "command": ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"],
-        "interval": 30,
-        "timeout": 5,
-        "retries": 3,
-        "startPeriod": 30
-      }
-    }
-  ]
+    ],
+    "executionRoleArn": "arn:aws:iam::772341601072:role/ecsTaskExecutionRole",
+    "networkMode": "awsvpc",
+    "volumes": [],
+    "placementConstraints": [],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "512",
+    "memory": "1024",
+    "runtimePlatform": {
+        "cpuArchitecture": "X86_64",
+        "operatingSystemFamily": "LINUX"
+    },
+    "enableFaultInjection": false
 }
