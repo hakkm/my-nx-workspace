@@ -100,12 +100,26 @@
         "command": "docker build -t demo-backend:local -f apps/backend-demo/Dockerfile .",
         "cwd": "."
       },
-      "dependsOn": ["build"]
+      "dependsOn": [
+        "build"
+      ]
     },
     "docker:push": {
       "executor": "nx:run-commands",
       "options": {
         "command": "docker tag demo-backend:local khabirhakim/demo-backend:latest && docker push khabirhakim/demo-backend:latest"
+      }
+    },
+    "docker:run:development": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker run --rm -e SPRING_PROFILES_ACTIVE=dev -p 8080:8080 demo-backend:local"
+      }
+    },
+    "docker:run:production": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker run --rm -e SPRING_PROFILES_ACTIVE=prod -p 8080:8080 demo-backend:local"
       }
     }
   }

@@ -47,9 +47,9 @@ springBoot {
 }
 
 tasks.named('bootJar') {
-  manifest {
-    attributes('Main-Class': 'org.springframework.boot.loader.JarLauncher')
-  }
+    layered {
+        enabled = true
+    }
 }
 
 publishing {

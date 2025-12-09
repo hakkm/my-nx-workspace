@@ -3,7 +3,12 @@
     "containerDefinitions": [
         {
             "cpu": 0,
-            "environment": [],
+            "environment": [
+                {
+                    "name": "SPRING_PROFILES_ACTIVE",
+                    "value": "prod"
+                }
+            ],
             "essential": true,
             "healthCheck": {
                 "command": [
