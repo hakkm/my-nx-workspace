@@ -63,17 +63,30 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Render ECS task definition with tag and region
+      - name: Render ECS task definition with tag and account ID
         run: |
-          sed -e "s/REPLACE_WITH_SHA/${{ github.sha }}/" \
+          # 1. Get the Account ID from the active credentials
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+          # 2. Replace BOTH placeholders in one go
+          # We use | as the delimiter in sed just in case weird characters show up
+          sed -e "s|REPLACE_WITH_SHA|${{ github.sha }}|g" \
+              -e "s|REPLACE_WITH_ACCOUNT_ID|$ACCOUNT_ID|g" \
               infra/ecs/task-def.json > task-def.rendered.json
+
+          # 3. Print it to console (so you can debug why it failed later)
           cat task-def.rendered.json
 
       - name: Register task definition
         id: registerTask
         run: |
+          # Register the rendered JSON
           aws ecs register-task-definition --cli-input-json file://task-def.rendered.json > register-output.json
+
+          # Extract the ARN (The "Receipt")
           TASK_DEF_ARN=$(jq -r '.taskDefinition.taskDefinitionArn' register-output.json)
+
+          # Pass it to the next step
           echo "taskDefArn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
 
       - name: Update ECS service

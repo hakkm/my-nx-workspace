@@ -1,0 +1,7 @@
+aws_region        = "eu-north-1"
+app_name          = "backend-demo-tf"
+container_image   = "khabirhakim/demo-backend:latest"
+container_port    = 8080
+fargate_cpu       = 512
+fargate_memory    = 1024
+health_check_path = "/actuator/health"
