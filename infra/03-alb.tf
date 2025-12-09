@@ -22,19 +22,41 @@ resource "aws_lb_target_group" "backend" {
     unhealthy_threshold = 2
   }
 
-  # Ensure the new target group is created before destroying the old one
   lifecycle {
     create_before_destroy = true
   }
 }
 
+# Default action is "Access Denied" ---
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
 
   default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Access Denied. Please use the CloudFront URL."
+      status_code  = "403"
+    }
+  }
+}
+
+# Allow traffic only if header matches ---
+resource "aws_lb_listener_rule" "allow_cloudfront" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 100
+
+  action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    http_header {
+      http_header_name = "X-Custom-Secret"
+      values           = [random_password.alb_secret.result]
+    }
   }
 }
