@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
@@ -13,7 +13,8 @@ permissions:
   id-token: write
 
 jobs:
-  main:
+  deploy:
+    name: Deploy Full Stack
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,10 +35,10 @@ jobs:
       - name: Test
         run: npx nx run-many -t test
 
-      - name: Build
+      - name: Build projects
         run: npx nx run-many -t build --configuration=production
 
-      # Build backend Docker image (depends on bootJar)
+      # --- BACKEND DEPLOYMENT ---
       - name: Build backend Docker image
         run: npx nx run demo:docker:build
 
@@ -101,6 +102,17 @@ jobs:
             --cluster "${{ secrets.AWS_ECS_CLUSTER }}" \
             --service "${{ secrets.AWS_ECS_SERVICE }}" \
             --task-definition "${{ steps.registerTask.outputs.taskDefArn }}"
+
+      # --- FRONTEND DEPLOYMENT ---
+      - name: Deploy Frontend to S3
+        run: |
+          aws s3 sync ./dist/apps/angular-demo/browser s3://${{ secrets.AWS_S3_BUCKET }} --delete
+
+      - name: Invalidate CloudFront Cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.AWS_CLOUDFRONT_ID }} \
+            --paths "/*"
 
       # Nx Cloud recommends fixes for failures
       - run: npx nx fix-ci
