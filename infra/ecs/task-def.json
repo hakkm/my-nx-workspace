@@ -1,62 +1,55 @@
 {
-    "family": "backend-demo-task-definition",
+    "family": "backend-demo-tf-task",
+    "executionRoleArn": "arn:aws:iam::REPLACE_WITH_ACCOUNT_ID:role/backend-demo-tf-execution-role",
+    "taskRoleArn": "arn:aws:iam::REPLACE_WITH_ACCOUNT_ID:role/backend-demo-tf-task-role",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "512",
+    "memory": "1024",
     "containerDefinitions": [
         {
+            "name": "backend-demo-tf-container",
+            "image": "khabirhakim/demo-backend:REPLACE_WITH_SHA",
             "cpu": 0,
+            "essential": true,
             "environment": [
                 {
                     "name": "SPRING_PROFILES_ACTIVE",
                     "value": "prod"
                 }
             ],
-            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/backend-demo-tf-task",
+                    "awslogs-region": "eu-north-1",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
             "healthCheck": {
                 "command": [
                     "CMD-SHELL",
                     "wget --no-verbose --tries=1 --spider http://localhost:8080/api/test/hello || exit 1"
                 ],
                 "interval": 30,
+                "timeout": 10,
                 "retries": 2,
-                "startPeriod": 30,
-                "timeout": 10
-            },
-            "image": "khabirhakim/demo-backend:REPLACE_WITH_SHA",
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": "/ecs/backend-demo-task-definition",
-                    "awslogs-create-group": "true",
-                    "awslogs-region": "eu-north-1",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            },
-            "mountPoints": [],
-            "name": "demo-backend",
-            "portMappings": [
-                {
-                    "appProtocol": "http",
-                    "containerPort": 8080,
-                    "hostPort": 8080,
-                    "name": "demo-backend-8080-tcp",
-                    "protocol": "tcp"
-                }
-            ],
-            "systemControls": [],
-            "volumesFrom": []
+                "startPeriod": 30
+            }
         }
     ],
-    "executionRoleArn": "arn:aws:iam::772341601072:role/ecsTaskExecutionRole",
-    "networkMode": "awsvpc",
-    "volumes": [],
-    "placementConstraints": [],
-    "requiresCompatibilities": [
-        "FARGATE"
-    ],
-    "cpu": "512",
-    "memory": "1024",
     "runtimePlatform": {
         "cpuArchitecture": "X86_64",
         "operatingSystemFamily": "LINUX"
-    },
-    "enableFaultInjection": false
+    }
 }

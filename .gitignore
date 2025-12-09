@@ -49,3 +49,39 @@ vite.config.*.timestamp*
 vitest.config.*.timestamp*
 apps/backend-demo/.gradle
 apps/backend-demo/build
+# infra/.terraform/providers/registry.terraform.io/hashicorp/aws
+# infra/.terraform.lock.hcl
+# infra/.terraform.tfstate.lock.info
+# infra/terraform.tfstate
+
+# 1. The Heavy Stuff (Plugins & Modules)
+# Prevents committing 300MB of AWS binaries
+.terraform/
+
+# 2. The Sensitive Stuff (State Files)
+# NEVER commit these. They contain plain-text passwords.
+*.tfstate
+*.tfstate.backup
+
+# 3. The Secrets (Variable Files)
+# Ignore auto-loaded var files that might contain keys
+*.tfvars
+*.tfvars.json
+
+# Exception: Allow example var files so teammates know what to fill in
+!example.tfvars
+!terraform.tfvars.example
+
+# 4. Crash Logs
+crash.log
+crash.*.log
+
+# 5. CLI Configuration overrides
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# 6. Terraform Cloud/Enterprise ignore files
+.terraformignore
+tasks.md
