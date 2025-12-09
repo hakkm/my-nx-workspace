@@ -28,8 +28,14 @@ jobs:
 
       - run: npm ci --legacy-peer-deps
 
-      # Lint, test, build all applicable projects
-      - run: npx nx run-many -t lint test build --configuration=production
+      - name: Lint
+        run: npx nx run-many -t lint
+
+      - name: Test
+        run: npx nx run-many -t test
+
+      - name: Build
+        run: npx nx run-many -t build --configuration=production
 
       # Build backend Docker image (depends on bootJar)
       - name: Build backend Docker image
