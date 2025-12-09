@@ -43,7 +43,15 @@ tasks.named('test') {
 }
 springBoot {
 	buildInfo()
+	mainClass = 'com.rabbithole.springbootdemo.DemoApplication'
 }
+
+tasks.named('bootJar') {
+    layered {
+        enabled = true
+    }
+}
+
 publishing {
 	publications {
 		mavenJava(MavenPublication) {

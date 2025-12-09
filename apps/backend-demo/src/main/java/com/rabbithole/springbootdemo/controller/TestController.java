@@ -11,6 +11,13 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin(origins = "*")
 public class TestController {
 
+  @GetMapping("/")
+  public ResponseEntity<Map<String, Object>> index() {
+    Map<String, Object> response = new HashMap<>();
+    response.put("message", "Welcom to our monorepo backend");
+    return ResponseEntity.ok(response);
+  }
+
   @GetMapping("/hello")
   public ResponseEntity<Map<String, Object>> hello() {
     Map<String, Object> response = new HashMap<>();

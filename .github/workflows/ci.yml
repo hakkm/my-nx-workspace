@@ -5,6 +5,7 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
 
 permissions:
   actions: write
@@ -28,7 +29,7 @@ jobs:
       - run: npm ci --legacy-peer-deps
 
       # Lint, test, build all applicable projects
-      - run: npx nx run-many -t lint test build
+      - run: npx nx run-many -t lint test build --configuration=production
 
       # Build backend Docker image (depends on bootJar)
       - name: Build backend Docker image
@@ -42,12 +43,14 @@ jobs:
         run: |
           echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
-      # Tag and push both SHA and latest
+      # Tag and push both SHA and latest (use full GITHUB SHA so it matches the ECS task rendering)
       - name: Tag and push image
         env:
           IMAGE_REPO: khabirhakim/demo-backend
         run: |
-          IMAGE_TAG=$(git rev-parse --short HEAD)
+          # Use the full commit SHA so it matches ${{ github.sha }} used later
+          IMAGE_TAG="${GITHUB_SHA}"
+          echo "Using image tag: ${IMAGE_TAG}"
           docker tag demo-backend:local ${IMAGE_REPO}:${IMAGE_TAG}
           docker tag demo-backend:local ${IMAGE_REPO}:latest
           docker push ${IMAGE_REPO}:${IMAGE_TAG}
