@@ -9,6 +9,7 @@
     "build": {
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
+      "cache": true,
       "options": {
         "outputPath": "dist/apps/angular-demo",
         "browser": "apps/angular-demo/src/main.ts",
@@ -72,10 +73,12 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint"
+      "executor": "@nx/eslint:lint",
+      "cache": true
     },
     "test": {
       "executor": "@nx/vite:test",
+      "cache": true,
       "outputs": ["{options.reportsDirectory}"],
       "options": {
         "reportsDirectory": "../../coverage/apps/angular-demo"
@@ -84,6 +87,7 @@
     "serve-static": {
       "continuous": true,
       "executor": "@nx/web:file-server",
+      "cache": true,
       "options": {
         "buildTarget": "angular-demo:build",
         "staticFilePath": "dist/apps/angular-demo/browser",
