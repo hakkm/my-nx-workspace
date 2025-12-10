@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  pull_request:
+  pull_request: # CI runs on PRs to check code quality
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,7 @@ permissions:
 jobs:
   # --- JOB 1: CHECK QUALITY (Runs on PRs & Main) ---
   check-quality:
-    name: Lint & Test
+    name: Lint & Test Affected Code
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,16 +29,17 @@ jobs:
 
       - run: npm ci --legacy-peer-deps
 
-      - name: Lint
-        run: npx nx run-many -t lint
+      # 1. NX LINT: Only check linting for projects affected by the change
+      - name: Lint Affected Projects
+        run: npx nx affected -t lint --base=origin/main --head=HEAD
 
-      - name: Test
-        run: npx nx run-many -t test
+      # 2. NX TEST: Only run tests for projects affected by the change
+      - name: Test Affected Projects
+        run: npx nx affected -t test --base=origin/main --head=HEAD
 
       # Nx Cloud recommends fixes for failures
       - run: npx nx fix-ci
         if: failure()
-
 
   # --- JOB 2: DEPLOY (Runs ONLY on Main, AFTER Checks) ---
   deploy:
@@ -57,14 +58,18 @@ jobs:
 
       - run: npm ci --legacy-peer-deps
 
-      - name: Build projects
-        run: npx nx run-many -t build --configuration=production
+      # 3. NX BUILD: Only build projects affected by the change (the one that needs to be deployed)
+      - name: Build Affected Projects for Production
+        run: npx nx affected -t build --configuration=production --base=origin/main --head=HEAD
 
       # --- BACKEND DEPLOYMENT ---
+      # This step should only run if the backend project (demo) was affected!
+      # We rely on the Dockerfile failing fast if the project wasn't built, or we could add an 'if' clause here.
       - name: Build backend Docker image
-        run: npx nx run demo:docker:build
+        run: npx nx run demo:docker:build # Assuming 'demo' is the backend app
 
-      # Login to Docker Hub using repository secrets
+      # ... (Rest of Docker/AWS login and ECS deployment logic remains the same) ...
+
       - name: Docker Hub login
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -72,12 +77,10 @@ jobs:
         run: |
           echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
-      # Tag and push both SHA and latest (use full GITHUB SHA so it matches the ECS task rendering)
       - name: Tag and push image
         env:
           IMAGE_REPO: khabirhakim/demo-backend
         run: |
-          # Use the full commit SHA so it matches ${{ github.sha }} used later
           IMAGE_TAG="${GITHUB_SHA}"
           echo "Using image tag: ${IMAGE_TAG}"
           docker tag demo-backend:local ${IMAGE_REPO}:${IMAGE_TAG}
@@ -85,7 +88,6 @@ jobs:
           docker push ${IMAGE_REPO}:${IMAGE_TAG}
           docker push ${IMAGE_REPO}:latest
 
-      # Configure AWS credentials (OIDC)
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -94,28 +96,17 @@ jobs:
 
       - name: Render ECS task definition with tag and account ID
         run: |
-          # 1. Get the Account ID from the active credentials
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-          # 2. Replace BOTH placeholders in one go
-          # We use | as the delimiter in sed just in case weird characters show up
           sed -e "s|REPLACE_WITH_SHA|${{ github.sha }}|g" \
               -e "s|REPLACE_WITH_ACCOUNT_ID|$ACCOUNT_ID|g" \
               infra/ecs/task-def.json > task-def.rendered.json
-
-          # 3. Print it to console (so you can debug why it failed later)
           cat task-def.rendered.json
 
       - name: Register task definition
         id: registerTask
         run: |
-          # Register the rendered JSON
           aws ecs register-task-definition --cli-input-json file://task-def.rendered.json > register-output.json
-
-          # Extract the ARN (The "Receipt")
           TASK_DEF_ARN=$(jq -r '.taskDefinition.taskDefinitionArn' register-output.json)
-
-          # Pass it to the next step
           echo "taskDefArn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
 
       - name: Update ECS service
@@ -126,6 +117,7 @@ jobs:
             --task-definition "${{ steps.registerTask.outputs.taskDefArn }}"
 
       # --- FRONTEND DEPLOYMENT ---
+      # WARNING: This still deploys the frontend even if it wasn't affected. See note below.
       - name: Deploy Frontend to S3
         run: |
           aws s3 sync ./dist/apps/angular-demo/browser s3://${{ secrets.AWS_S3_BUCKET }} --delete
