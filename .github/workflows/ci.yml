@@ -85,6 +85,8 @@ jobs:
           echo "👀 Running on feature branch. Comparing HEAD to base ($BASE_REF)..."
           fi
 
+          echo "base_ref=$BASE_REF" >> $GITHUB_OUTPUT
+
           # 3. Run Nx Show Projects using the dynamic BASE_REF
           AFFECTED_PROJECTS=$(npx nx show projects --affected --base=$BASE_REF --head=HEAD --json | jq -r 'join(" ")')
 
