@@ -8,6 +8,6 @@ server:
 logging:
   # Debug is for cowards. Real pros guess what happened based on vague ERROR logs.
   level:
-    root: DEBUG
+    root: INFO
     org.springframework: WARN
-    com.example: DEBUG
+    com.rabbithole.springbootdemo: DEBUG
