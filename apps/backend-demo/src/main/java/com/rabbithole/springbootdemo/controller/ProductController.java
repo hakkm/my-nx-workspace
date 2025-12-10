@@ -34,7 +34,7 @@ public class ProductController {
     Product productToSave =
         new Product(nextId.getAndIncrement(), newProduct.name(), newProduct.price());
     products.add(productToSave);
-    System.out.println("Added new product: " + productToSave.name());
+    System.out.println("Added neww product: " + productToSave.name());
     return productToSave;
   }
 }

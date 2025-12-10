@@ -10,6 +10,7 @@ import { environment } from '../environments/environment';
   imports: [RouterModule, HttpClientModule, NgIf, NgFor, CurrencyPipe],
   template: `
     <h1>{{ title }}</h1>
+    <p>Hi there!</p>
 
     <div *ngIf="error" style="color: #c44">{{ error }}</div>
 
