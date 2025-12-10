@@ -55,6 +55,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # CRITICAL: Pulls full history for 'nx affected' comparison
 
       - name: Setup Node.js 20 & npm Cache
         uses: actions/setup-node@v4
