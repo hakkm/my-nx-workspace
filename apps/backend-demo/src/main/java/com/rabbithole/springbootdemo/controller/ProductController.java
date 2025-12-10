@@ -1,11 +1,10 @@
 package com.rabbithole.springbootdemo.controller;
 
-
 import com.rabbithole.springbootdemo.model.Product;
-import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/products")
@@ -32,11 +31,8 @@ public class ProductController {
   @PostMapping
   public Product addProduct(@RequestBody Product newProduct) {
     // Create a new product with the next available ID
-    Product productToSave = new Product(
-      nextId.getAndIncrement(),
-      newProduct.name(),
-      newProduct.price()
-    );
+    Product productToSave =
+        new Product(nextId.getAndIncrement(), newProduct.name(), newProduct.price());
     products.add(productToSave);
     System.out.println("Added new product: " + productToSave.name());
     return productToSave;
