@@ -101,85 +101,85 @@ jobs:
 
           echo "Full affected list: $AFFECTED_PROJECTS"
 
-          # 4. NX BUILD: Only build projects that were affected
-          - name: 🔨 Build Affected Projects for Production
-            run: npx nx affected -t build --configuration=production --base=origin/main --head=HEAD
+      # 4. NX BUILD: Only build projects that were affected
+      - name: 🔨 Build Affected Projects for Production
+        run: npx nx affected -t build --configuration=production --base=origin/main --head=HEAD
 
-          # --- BACKEND DEPLOYMENT (Conditional) ---
-          - name: 🐳 Build backend Docker image
-            # Only run if the 'demo' project was flagged as affected
-            if: steps.affected_projects.outputs.deploy_backend == 'true'
-            run: npx nx run demo:docker:build
+      # --- BACKEND DEPLOYMENT (Conditional) ---
+      - name: 🐳 Build backend Docker image
+        # Only run if the 'demo' project was flagged as affected
+        if: steps.affected_projects.outputs.deploy_backend == 'true'
+        run: npx nx run demo:docker:build
 
-          - name: Docker Hub login
-            if: steps.affected_projects.outputs.deploy_backend == 'true'
-            env:
-              DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-              DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-            run: |
-              echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - name: Docker Hub login
+        if: steps.affected_projects.outputs.deploy_backend == 'true'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
-          - name: Tag and push image
-            if: steps.affected_projects.outputs.deploy_backend == 'true'
-            env:
-              IMAGE_REPO: khabirhakim/demo-backend
-            run: |
-              IMAGE_TAG="${GITHUB_SHA}"
-              echo "Using image tag: ${IMAGE_TAG}"
-              docker tag demo-backend:local ${IMAGE_REPO}:${IMAGE_TAG}
-              docker tag demo-backend:local ${IMAGE_REPO}:latest
-              docker push ${IMAGE_REPO}:${IMAGE_TAG}
-              docker push ${IMAGE_REPO}:latest
+      - name: Tag and push image
+        if: steps.affected_projects.outputs.deploy_backend == 'true'
+        env:
+          IMAGE_REPO: khabirhakim/demo-backend
+        run: |
+          IMAGE_TAG="${GITHUB_SHA}"
+          echo "Using image tag: ${IMAGE_TAG}"
+          docker tag demo-backend:local ${IMAGE_REPO}:${IMAGE_TAG}
+          docker tag demo-backend:local ${IMAGE_REPO}:latest
+          docker push ${IMAGE_REPO}:${IMAGE_TAG}
+          docker push ${IMAGE_REPO}:latest
 
-          # --- AWS DEPLOYMENT SETUP ---
-          - name: Configure AWS credentials (OIDC)
-            # Only assume the IAM role if we are deploying either component
-            if: steps.affected_projects.outputs.deploy_backend == 'true' || steps.affected_projects.outputs.deploy_frontend == 'true'
-            uses: aws-actions/configure-aws-credentials@v4
-            with:
-              role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-              aws-region: ${{ secrets.AWS_REGION }}
+      # --- AWS DEPLOYMENT SETUP ---
+      - name: Configure AWS credentials (OIDC)
+        # Only assume the IAM role if we are deploying either component
+        if: steps.affected_projects.outputs.deploy_backend == 'true' || steps.affected_projects.outputs.deploy_frontend == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-          - name: Render ECS task definition
-            if: steps.affected_projects.outputs.deploy_backend == 'true'
-            run: |
-              ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-              # Replace image tag and AWS account ID placeholders
-              sed -e "s|REPLACE_WITH_SHA|${{ github.sha }}|g" \
-                  -e "s|REPLACE_WITH_ACCOUNT_ID|$ACCOUNT_ID|g" \
-                  infra/ecs/task-def.json > task-def.rendered.json
-              cat task-def.rendered.json
+      - name: Render ECS task definition
+        if: steps.affected_projects.outputs.deploy_backend == 'true'
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          # Replace image tag and AWS account ID placeholders
+          sed -e "s|REPLACE_WITH_SHA|${{ github.sha }}|g" \
+              -e "s|REPLACE_WITH_ACCOUNT_ID|$ACCOUNT_ID|g" \
+              infra/ecs/task-def.json > task-def.rendered.json
+          cat task-def.rendered.json
 
-          - name: Register task definition
-            if: steps.affected_projects.outputs.deploy_backend == 'true'
-            id: registerTask
-            run: |
-              aws ecs register-task-definition --cli-input-json file://task-def.rendered.json > register-output.json
-              TASK_DEF_ARN=$(jq -r '.taskDefinition.taskDefinitionArn' register-output.json)
-              echo "taskDefArn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+      - name: Register task definition
+        if: steps.affected_projects.outputs.deploy_backend == 'true'
+        id: registerTask
+        run: |
+          aws ecs register-task-definition --cli-input-json file://task-def.rendered.json > register-output.json
+          TASK_DEF_ARN=$(jq -r '.taskDefinition.taskDefinitionArn' register-output.json)
+          echo "taskDefArn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
 
-          - name: Update ECS service
-            if: steps.affected_projects.outputs.deploy_backend == 'true'
-            run: |
-              # Update the running ECS service to use the new task definition ARN
-              aws ecs update-service \
-                --cluster "${{ secrets.AWS_ECS_CLUSTER }}" \
-                --service "${{ secrets.AWS_ECS_SERVICE }}" \
-                --task-definition "${{ steps.registerTask.outputs.taskDefArn }}"
+      - name: Update ECS service
+        if: steps.affected_projects.outputs.deploy_backend == 'true'
+        run: |
+          # Update the running ECS service to use the new task definition ARN
+          aws ecs update-service \
+            --cluster "${{ secrets.AWS_ECS_CLUSTER }}" \
+            --service "${{ secrets.AWS_ECS_SERVICE }}" \
+            --task-definition "${{ steps.registerTask.outputs.taskDefArn }}"
 
-          # --- FRONTEND DEPLOYMENT (Conditional) ---
-          - name: ☁️ Deploy Frontend to S3
-            # Only run if the 'angular-demo' project was flagged as affected
-            if: steps.affected_projects.outputs.deploy_frontend == 'true'
-            run: |
-              # Syncs the entire new build, deleting old files for consistency
-              aws s3 sync ./dist/apps/angular-demo/browser s3://${{ secrets.AWS_S3_BUCKET }} --delete
+      # --- FRONTEND DEPLOYMENT (Conditional) ---
+      - name: ☁️ Deploy Frontend to S3
+        # Only run if the 'angular-demo' project was flagged as affected
+        if: steps.affected_projects.outputs.deploy_frontend == 'true'
+        run: |
+          # Syncs the entire new build, deleting old files for consistency
+          aws s3 sync ./dist/apps/angular-demo/browser s3://${{ secrets.AWS_S3_BUCKET }} --delete
 
-          - name: Invalidate CloudFront Cache
-            # Invalidate only if *something* was deployed that users need to see
-            if: steps.affected_projects.outputs.deploy_backend == 'true' || steps.affected_projects.outputs.deploy_frontend == 'true'
-            run: |
-              # Clears cache so users get the latest changes immediately
-              aws cloudfront create-invalidation \
-                --distribution-id ${{ secrets.AWS_CLOUDFRONT_ID }} \
-                --paths "/*"
+      - name: Invalidate CloudFront Cache
+        # Invalidate only if *something* was deployed that users need to see
+        if: steps.affected_projects.outputs.deploy_backend == 'true' || steps.affected_projects.outputs.deploy_frontend == 'true'
+        run: |
+          # Clears cache so users get the latest changes immediately
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.AWS_CLOUDFRONT_ID }} \
+            --paths "/*"
