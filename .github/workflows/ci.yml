@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - main
-  pull_request: # CI runs on PRs to check code quality
-  workflow_dispatch:
+  pull_request: # Runs CI checks for every Pull Request
+  workflow_dispatch: # Allows manual trigger from the GitHub UI
 
 permissions:
   actions: write
@@ -18,18 +18,21 @@ jobs:
     name: Lint & Test Affected Code
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Needed for Nx to detect affected projects
+          fetch-depth: 0 # CRITICAL: Pulls full history for 'nx affected' comparison
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js 20 & npm Cache
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
-      - run: npm ci --legacy-peer-deps
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps
 
-      # 1. NX LINT: Only check linting for projects affected by the change
+      # 1. NX LINT: Only check linting for files changed relative to 'main'
       - name: Lint Affected Projects
         run: npx nx affected -t lint --base=origin/main --head=HEAD
 
@@ -37,40 +40,63 @@ jobs:
       - name: Test Affected Projects
         run: npx nx affected -t test --base=origin/main --head=HEAD
 
-      # Nx Cloud recommends fixes for failures
-      - run: npx nx fix-ci
+      # Nx Cloud fix-ci (runs only if a previous step failed)
+      - name: Run Nx Fix-CI on Failure
+        run: npx nx fix-ci
         if: failure()
 
   # --- JOB 2: DEPLOY (Runs ONLY on Main, AFTER Checks) ---
   deploy:
     name: Deploy Production
     runs-on: ubuntu-latest
-    needs: [check-quality]
-    if: github.ref == 'refs/heads/main'
+    needs: [check-quality] # Only run if Job 1 succeeded
+    if: github.ref == 'refs/heads/main' # Only deploy when merging to main
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js 20 & npm Cache
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
-      - run: npm ci --legacy-peer-deps
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps
 
-      # 3. NX BUILD: Only build projects affected by the change (the one that needs to be deployed)
-      - name: Build Affected Projects for Production
+      # 🚨 STEP 3: Determine which projects were affected (The Gatekeeper)
+      - name: 🔍 Determine Affected Projects for Deployment
+        id: affected_projects
+        run: |
+          # Uses the modern 'nx show projects' to find project names
+          AFFECTED_PROJECTS=$(npx nx show projects --affected --base=origin/main --head=HEAD --json | jq -r 'join(" ")')
+
+          # Set flags for conditional execution later
+          if echo "$AFFECTED_PROJECTS" | grep -q 'demo'; then
+            echo "deploy_backend=true" >> $GITHUB_OUTPUT
+            echo "Backend 'demo' is affected. Will deploy."
+          fi
+
+          if echo "$AFFECTED_PROJECTS" | grep -q 'angular-demo'; then
+            echo "deploy_frontend=true" >> $GITHUB_OUTPUT
+            echo "Frontend 'angular-demo' is affected. Will deploy."
+          fi
+
+          echo "Full affected list: $AFFECTED_PROJECTS"
+
+      # 4. NX BUILD: Only build projects that were affected
+      - name: 🔨 Build Affected Projects for Production
         run: npx nx affected -t build --configuration=production --base=origin/main --head=HEAD
 
-      # --- BACKEND DEPLOYMENT ---
-      # This step should only run if the backend project (demo) was affected!
-      # We rely on the Dockerfile failing fast if the project wasn't built, or we could add an 'if' clause here.
-      - name: Build backend Docker image
-        run: npx nx run demo:docker:build # Assuming 'demo' is the backend app
-
-      # ... (Rest of Docker/AWS login and ECS deployment logic remains the same) ...
+      # --- BACKEND DEPLOYMENT (Conditional) ---
+      - name: 🐳 Build backend Docker image
+        # Only run if the 'demo' project was flagged as affected
+        if: steps.affected_projects.outputs.deploy_backend == 'true'
+        run: npx nx run demo:docker:build
 
       - name: Docker Hub login
+        if: steps.affected_projects.outputs.deploy_backend == 'true'
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -78,6 +104,7 @@ jobs:
           echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
       - name: Tag and push image
+        if: steps.affected_projects.outputs.deploy_backend == 'true'
         env:
           IMAGE_REPO: khabirhakim/demo-backend
         run: |
@@ -88,21 +115,27 @@ jobs:
           docker push ${IMAGE_REPO}:${IMAGE_TAG}
           docker push ${IMAGE_REPO}:latest
 
+      # --- AWS DEPLOYMENT SETUP ---
       - name: Configure AWS credentials (OIDC)
+        # Only assume the IAM role if we are deploying either component
+        if: steps.affected_projects.outputs.deploy_backend == 'true' || steps.affected_projects.outputs.deploy_frontend == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Render ECS task definition with tag and account ID
+      - name: Render ECS task definition
+        if: steps.affected_projects.outputs.deploy_backend == 'true'
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          # Replace image tag and AWS account ID placeholders
           sed -e "s|REPLACE_WITH_SHA|${{ github.sha }}|g" \
               -e "s|REPLACE_WITH_ACCOUNT_ID|$ACCOUNT_ID|g" \
               infra/ecs/task-def.json > task-def.rendered.json
           cat task-def.rendered.json
 
       - name: Register task definition
+        if: steps.affected_projects.outputs.deploy_backend == 'true'
         id: registerTask
         run: |
           aws ecs register-task-definition --cli-input-json file://task-def.rendered.json > register-output.json
@@ -110,20 +143,27 @@ jobs:
           echo "taskDefArn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
 
       - name: Update ECS service
+        if: steps.affected_projects.outputs.deploy_backend == 'true'
         run: |
+          # Update the running ECS service to use the new task definition ARN
           aws ecs update-service \
             --cluster "${{ secrets.AWS_ECS_CLUSTER }}" \
             --service "${{ secrets.AWS_ECS_SERVICE }}" \
             --task-definition "${{ steps.registerTask.outputs.taskDefArn }}"
 
-      # --- FRONTEND DEPLOYMENT ---
-      # WARNING: This still deploys the frontend even if it wasn't affected. See note below.
-      - name: Deploy Frontend to S3
+      # --- FRONTEND DEPLOYMENT (Conditional) ---
+      - name: ☁️ Deploy Frontend to S3
+        # Only run if the 'angular-demo' project was flagged as affected
+        if: steps.affected_projects.outputs.deploy_frontend == 'true'
         run: |
+          # Syncs the entire new build, deleting old files for consistency
           aws s3 sync ./dist/apps/angular-demo/browser s3://${{ secrets.AWS_S3_BUCKET }} --delete
 
       - name: Invalidate CloudFront Cache
+        # Invalidate only if *something* was deployed that users need to see
+        if: steps.affected_projects.outputs.deploy_backend == 'true' || steps.affected_projects.outputs.deploy_frontend == 'true'
         run: |
+          # Clears cache so users get the latest changes immediately
           aws cloudfront create-invalidation \
             --distribution-id ${{ secrets.AWS_CLOUDFRONT_ID }} \
             --paths "/*"
