@@ -103,7 +103,7 @@ jobs:
 
       # 4. NX BUILD: Only build projects that were affected
       - name: 🔨 Build Affected Projects for Production
-        run: npx nx affected -t build --configuration=production --base=origin/main --head=HEAD
+        run: npx nx affected -t build --configuration=production --base=${{ steps.affected_projects.outputs.base_ref }} --head=HEAD
 
       # --- BACKEND DEPLOYMENT (Conditional) ---
       - name: 🐳 Build backend Docker image
