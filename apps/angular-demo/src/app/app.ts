@@ -43,7 +43,7 @@ export class App {
   }
 
   private fetchHello() {
-    const url = `${environment.apiBaseUrl}/api/test/hello`;
+    const url = `${environment.apiBaseUrl}/test/hello`;
     this.http
       .get<HelloResponse>(url)
       .subscribe({

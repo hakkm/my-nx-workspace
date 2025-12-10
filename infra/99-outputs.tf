@@ -12,3 +12,8 @@ output "s3_bucket_name" {
   description = "Name of the S3 bucket (for CI/CD upload)"
   value       = aws_s3_bucket.frontend.id
 }
+
+output "github_actions_role_arn" {
+  description = "Put this in your GitHub Secret: AWS_ROLE_ARN"
+  value       = aws_iam_role.github_actions.arn
+}
