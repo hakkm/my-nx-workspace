@@ -14,7 +14,7 @@ public class TestController {
   @GetMapping("/")
   public ResponseEntity<Map<String, Object>> index() {
     Map<String, Object> response = new HashMap<>();
-    response.put("message", "Welcom to our monorepo backend");
+    response.put("message", "Welcom to our monorepo backend!");
     return ResponseEntity.ok(response);
   }
 
